@@ -1,223 +1,196 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Zap, ArrowRight } from 'lucide-react';
+import { Eye, EyeOff, Zap, ArrowRight, Loader2 } from 'lucide-react';
+import { login, signup } from '../api';
 
 const AuthPage = ({ onLogin }) => {
-  const [mode, setMode] = useState('login'); // 'login' | 'signup'
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'employee' });
-  const [showPass, setShowPass] = useState(false);
+  const [isLogin, setIsLogin] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'employee'
+  });
 
-  const handleSubmit = () => {
-    if (!form.email || !form.password) return;
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      // Determine role from email for demo
-      let role = 'employee';
-      if (form.email.includes('admin')) role = 'admin';
-      else if (form.email.includes('manager')) role = 'manager';
-      else if (form.role === 'admin') role = 'admin';
-      else if (form.role === 'manager') role = 'manager';
+    setError('');
 
-      const name = form.name || (role === 'admin' ? 'Dana Kim' : role === 'manager' ? 'Sarah Chen' : 'Alex Morgan');
-      onLogin({ name, email: form.email, role });
-    }, 800);
+    try {
+      const response = isLogin 
+        ? await login({ email: formData.email, password: formData.password })
+        : await signup(formData);
+
+      if (response.data.token) {
+        onLogin(response.data.user, response.data.token);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Authentication failed. Please check your credentials.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left – Branding */}
-      <div className="hidden lg:flex w-[45%] gradient-bg flex-col justify-between p-12 relative overflow-hidden">
-        {/* Background decoration */}
-        <div className="absolute top-0 right-0 w-80 h-80 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-black/10 rounded-full translate-y-1/3 -translate-x-1/3" />
+    <div className="min-h-screen bg-[#F5F6FA] flex items-center justify-center p-4">
+      <div className="max-w-4xl w-full bg-white rounded-[24px] shadow-2xl overflow-hidden flex min-h-[600px]">
+        
+        {/* Left Side - Visual */}
+        <div className="hidden md:flex w-1/2 gradient-bg p-12 flex-col justify-between relative overflow-hidden">
+          {/* Subtle Blob SVG */}
+          <svg className="absolute top-0 right-0 w-full h-full opacity-20" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+            <path fill="#FFFFFF" d="M44.7,-76.4C58.3,-69.2,70.1,-57.4,78.2,-43.8C86.3,-30.2,90.7,-15.1,89.5,-0.7C88.3,13.7,81.5,27.4,72.2,39.6C62.9,51.8,51.1,62.5,37.3,70.6C23.5,78.7,7.7,84.2,-8.1,82.4C-23.9,80.6,-39.7,71.5,-53.4,60.2C-67.1,48.9,-78.7,35.4,-84.6,19.8C-90.5,4.2,-90.7,-13.5,-84.4,-29C-78.1,-44.5,-65.3,-57.8,-50.8,-64.8C-36.3,-71.8,-20.1,-72.5,-3.5,-66.4C13.1,-60.3,26.2,-47.4,44.7,-76.4Z" transform="translate(200 200)" />
+          </svg>
 
-        {/* Logo */}
-        <div className="relative flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center">
-            <Zap size={20} className="text-white" />
-          </div>
-          <span className="font-display text-xl font-bold text-white">MoneyMatters</span>
-        </div>
-
-        {/* Center copy */}
-        <div className="relative">
-          <div className="inline-block bg-white/10 backdrop-blur text-white/80 text-xs font-semibold px-3 py-1.5 rounded-lg mb-6 uppercase tracking-wider">
-            Reimbursement Platform
-          </div>
-          <h2 className="font-display text-4xl font-bold text-white leading-tight mb-4">
-            Expense claims,<br />
-            handled effortlessly.
-          </h2>
-          <p className="text-white/70 text-base leading-relaxed max-w-xs">
-            Submit, approve, and track reimbursements — all in one place. Fast, transparent, and painless.
-          </p>
-        </div>
-
-        {/* Stats */}
-        <div className="relative flex gap-6">
-          {[['2.4k', 'Expenses processed'], ['98%', 'On-time approvals'], ['< 2d', 'Avg. turnaround']].map(([val, label]) => (
-            <div key={label}>
-              <p className="font-display text-2xl font-bold text-white">{val}</p>
-              <p className="text-white/60 text-xs mt-0.5">{label}</p>
+          <div className="relative z-10">
+            <div className="flex items-center gap-2 mb-8">
+              <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center">
+                <Zap size={20} className="text-white" />
+              </div>
+              <span className="text-xl font-bold text-white font-display">MoneyMatters</span>
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Right – Form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-slate-50">
-        <div className="w-full max-w-md">
-          {/* Mobile logo */}
-          <div className="lg:hidden flex items-center gap-2 mb-8">
-            <div className="w-8 h-8 rounded-xl gradient-bg flex items-center justify-center">
-              <Zap size={16} className="text-white" />
-            </div>
-            <span className="font-display text-lg font-bold text-slate-800">MoneyMatters</span>
+            
+            <h1 className="text-4xl font-bold text-white leading-tight mb-4">
+              {isLogin ? 'Welcome back to your team.' : 'Manage expenses with zero friction.'}
+            </h1>
+            <p className="text-white/70 text-lg">
+              The smartest way for teams to handle reimbursements and bills.
+            </p>
           </div>
 
-          <div className="card p-8">
-            {/* Toggle */}
-            <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl mb-8">
-              {['login', 'signup'].map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setMode(m)}
-                  className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-150 ${
-                    mode === m
-                      ? 'bg-white text-slate-800 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  {m === 'login' ? 'Sign in' : 'Create account'}
-                </button>
-              ))}
+          <div className="relative z-10 bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+            <p className="text-white text-sm font-medium italic">
+              "MoneyMatters saved our finance team 20 hours a week on manual approvals. It's a game changer."
+            </p>
+            <div className="flex items-center gap-3 mt-4">
+              <div className="w-8 h-8 rounded-full bg-slate-200" />
+              <div>
+                <p className="text-white text-xs font-bold">Sarah Jenkins</p>
+                <p className="text-white/60 text-[10px]">Head of Finance, Vercel</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Side - Form */}
+        <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center">
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-slate-800 mb-2">
+              {isLogin ? 'Welcome back' : 'Join your team'}
+            </h2>
+            <p className="text-slate-500">
+              {isLogin 
+                ? 'Great to see you again!' 
+                : 'Your company account will be set up automatically.'}
+            </p>
+          </div>
+
+          {/* Toggle Tabs */}
+          <div className="flex bg-slate-100 p-1 rounded-xl mb-8">
+            <button 
+              onClick={() => setIsLogin(true)}
+              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${isLogin ? 'bg-white text-[#6C47FF] shadow-sm' : 'text-slate-500'}`}
+            >
+              Sign In
+            </button>
+            <button 
+              onClick={() => setIsLogin(false)}
+              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${!isLogin ? 'bg-white text-[#6C47FF] shadow-sm' : 'text-slate-500'}`}
+            >
+              Create Account
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm font-medium">
+                {error}
+              </div>
+            )}
+
+            {!isLogin && (
+              <div>
+                <label className="label">Full Name</label>
+                <input 
+                  type="text" 
+                  placeholder="John Doe"
+                  className="input"
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="label">Email Address</label>
+              <input 
+                type="email" 
+                placeholder="you@company.com"
+                className="input"
+                required
+                value={formData.email}
+                onChange={(e) => setFormData({...formData, email: e.target.value})}
+              />
             </div>
 
             <div>
-              <h3 className="font-display text-2xl font-bold text-slate-800 mb-1">
-                {mode === 'login' ? 'Welcome back' : 'Join your team'}
-              </h3>
-              <p className="text-sm text-slate-500 mb-6">
-                {mode === 'login'
-                  ? 'Enter your credentials to continue'
-                  : 'Your company account will be set up automatically'}
-              </p>
-
-              <div className="space-y-4">
-                {mode === 'signup' && (
-                  <div>
-                    <label className="label">Full name</label>
-                    <input
-                      type="text"
-                      placeholder="Jane Smith"
-                      value={form.name}
-                      onChange={(e) => setForm({ ...form, name: e.target.value })}
-                      className="input"
-                    />
-                  </div>
-                )}
-
-                <div>
-                  <label className="label">Email address</label>
-                  <input
-                    type="email"
-                    placeholder="you@company.com"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    className="input"
-                  />
-                </div>
-
-                <div>
-                  <label className="label">Password</label>
-                  <div className="relative">
-                    <input
-                      type={showPass ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      value={form.password}
-                      onChange={(e) => setForm({ ...form, password: e.target.value })}
-                      className="input pr-10"
-                      onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPass(!showPass)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    >
-                      {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
-                    </button>
-                  </div>
-                </div>
-
-                {mode === 'signup' && (
-                  <div>
-                    <label className="label">Role</label>
-                    <select
-                      value={form.role}
-                      onChange={(e) => setForm({ ...form, role: e.target.value })}
-                      className="input"
-                    >
-                      <option value="employee">Employee</option>
-                      <option value="manager">Manager</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </div>
-                )}
+              <label className="label">Password</label>
+              <div className="relative">
+                <input 
+                  type={showPassword ? 'text' : 'password'} 
+                  placeholder="••••••••"
+                  className="input pr-12"
+                  required
+                  value={formData.password}
+                  onChange={(e) => setFormData({...formData, password: e.target.value})}
+                />
+                <button 
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
-
-              {mode === 'login' && (
-                <div className="flex justify-end mt-2">
-                  <button className="text-xs text-brand-500 hover:text-brand-600 font-medium">
-                    Forgot password?
-                  </button>
-                </div>
-              )}
-
-              <button
-                onClick={handleSubmit}
-                disabled={loading}
-                className="btn-primary w-full justify-center mt-6 py-3"
-              >
-                {loading ? (
-                  <span className="flex items-center gap-2">
-                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    {mode === 'login' ? 'Signing in…' : 'Creating account…'}
-                  </span>
-                ) : (
-                  <>
-                    {mode === 'login' ? 'Sign in' : 'Create account'}
-                    <ArrowRight size={15} />
-                  </>
-                )}
-              </button>
-
-              {mode === 'login' && (
-                <div className="mt-6 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                  <p className="text-xs text-slate-500 font-medium mb-1.5">Demo accounts (any password):</p>
-                  <div className="space-y-1">
-                    {[
-                      ['admin@acme.com', 'Admin'],
-                      ['manager@acme.com', 'Manager'],
-                      ['employee@acme.com', 'Employee'],
-                    ].map(([email, role]) => (
-                      <button
-                        key={email}
-                        onClick={() => setForm({ ...form, email, password: 'demo123' })}
-                        className="flex items-center justify-between w-full text-xs px-2 py-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-600"
-                      >
-                        <span className="font-mono">{email}</span>
-                        <span className="text-slate-400">{role}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
-          </div>
+
+            {!isLogin && (
+              <div>
+                <label className="label">I am a...</label>
+                <select 
+                  className="input"
+                  value={formData.role}
+                  onChange={(e) => setFormData({...formData, role: e.target.value})}
+                >
+                  <option value="employee">Employee</option>
+                  <option value="manager">Manager</option>
+                  <option value="admin">System Admin</option>
+                </select>
+              </div>
+            )}
+
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="btn-primary w-full justify-center mt-4"
+            >
+              {loading ? <Loader2 className="animate-spin" size={20} /> : (
+                <>
+                  {isLogin ? 'Sign In' : 'Create account'} 
+                  <ArrowRight size={18} className="ml-2" />
+                </>
+              )}
+            </button>
+          </form>
+
+          <p className="text-center text-slate-400 text-xs mt-8">
+            By signing in, you agree to our <span className="underline cursor-pointer">Terms of Service</span> and <span className="underline cursor-pointer">Privacy Policy</span>.
+          </p>
         </div>
       </div>
     </div>

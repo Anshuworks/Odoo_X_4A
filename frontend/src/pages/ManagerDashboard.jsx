@@ -1,37 +1,71 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import StatusBadge from '../components/StatusBadge';
-import { mockExpenses } from '../data/mockData';
+import { getManagerBills, managerBillAction } from '../api';
 import { CheckCircle, XCircle, MessageSquare, Filter, DollarSign, Clock, Users } from 'lucide-react';
 
 const ManagerDashboard = ({ user, onLogout }) => {
   const [activePage, setActivePage] = useState('approvals');
-  const [filter, setFilter] = useState('Pending');
-  const [expenses, setExpenses] = useState(
-    mockExpenses.filter(e => ['Alex Morgan', 'Jordan Lee'].includes(e.employee))
-  );
+  const [filter, setFilter] = useState('All');
+  const [bills, setBills] = useState([]);
   const [comments, setComments] = useState({});
   const [commentOpen, setCommentOpen] = useState(null);
 
-  const handleAction = (id, status) => {
-    setExpenses(expenses.map(e => e.id === id ? { ...e, status } : e));
-    setCommentOpen(null);
+  useEffect(() => {
+    fetchBills();
+  }, [activePage]);
+
+  const fetchBills = async () => {
+    try {
+      const res = await getManagerBills();
+      if (res.data.success) {
+        setBills(res.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch pending bills', err);
+    }
   };
 
-  const filtered = filter === 'All' ? expenses : expenses.filter(e => e.status === filter);
-  const pendingCount = expenses.filter(e => e.status === 'Pending').length;
-  const approvedCount = expenses.filter(e => e.status === 'Approved').length;
-  const totalPending = expenses.filter(e => e.status === 'Pending').reduce((s, e) => s + e.amount, 0);
+  const handleAction = async (id, action) => {
+    try {
+      await managerBillAction(id, { action, comment: comments[id] || '' });
+      await fetchBills();
+    } catch (err) {
+      console.error(`Failed to ${action} bill`, err);
+      alert(err.response?.data?.message || `Failed to ${action} bill`);
+    } finally {
+      setCommentOpen(null);
+    }
+  };
+
+  const getTabFilter = (tab, bill) => {
+      if (tab === 'All') return true;
+      if (tab === 'Pending') return bill.current_stage === 'manager_review';
+      if (tab === 'Approved') return bill.manager_status === 'approved';
+      if (tab === 'Rejected') return bill.manager_status === 'rejected';
+      return true;
+  }
+
+  const filtered = bills.filter(b => getTabFilter(filter, b));
+  const pendingCount = bills.filter(b => b.current_stage === 'manager_review').length;
+  const approvedCount = bills.filter(b => b.manager_status === 'approved').length;
+  const totalPending = bills.filter(b => b.current_stage === 'manager_review').reduce((s, b) => s + Number(b.amount), 0);
 
   const filterBtns = ['All', 'Pending', 'Approved', 'Rejected'];
+
+  const getOverallStatus = (bill) => {
+      if (bill.manager_status === 'rejected') return 'rejected';
+      if (bill.manager_status === 'approved') return 'approved';
+      return 'manager_review';
+  }
 
   return (
     <div className="flex min-h-screen bg-slate-50">
       <Sidebar role="manager" activePage={activePage} onNavigate={setActivePage} onLogout={onLogout} />
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Navbar user={user} title={activePage === 'approvals' ? 'Approvals Queue' : 'Team Overview'} />
+        <Navbar user={user} title={activePage === 'approvals' ? 'Final Approvals Queue' : 'Team Overview'} />
 
         <main className="flex-1 p-6 overflow-y-auto space-y-6">
 
@@ -40,7 +74,7 @@ const ManagerDashboard = ({ user, onLogout }) => {
               {/* Stats */}
               <div className="grid grid-cols-3 gap-4">
                 {[
-                  { label: 'Awaiting Approval', value: pendingCount, icon: Clock, color: 'bg-amber-400', accent: 'text-amber-600' },
+                  { label: 'Awaiting Final Approval', value: pendingCount, icon: Clock, color: 'bg-amber-400', accent: 'text-amber-600' },
                   { label: 'Approved This Month', value: approvedCount, icon: CheckCircle, color: 'bg-emerald-400', accent: 'text-emerald-600' },
                   { label: 'Pending Amount', value: `$${totalPending.toFixed(2)}`, icon: DollarSign, color: 'gradient-bg', accent: 'text-brand-500' },
                 ].map(({ label, value, icon: Icon, color }) => (
@@ -84,7 +118,7 @@ const ManagerDashboard = ({ user, onLogout }) => {
                     <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center">
                       <CheckCircle size={20} className="text-slate-300" />
                     </div>
-                    <p className="text-sm text-slate-400 font-medium">No expenses in this category</p>
+                    <p className="text-sm text-slate-400 font-medium">No bills in this category</p>
                   </div>
                 ) : (
                   <div className="divide-y divide-slate-50">
@@ -95,47 +129,47 @@ const ManagerDashboard = ({ user, onLogout }) => {
                       ))}
                     </div>
 
-                    {filtered.map((expense) => (
-                      <div key={expense.id} className="group">
+                    {filtered.map((bill) => (
+                      <div key={bill.id} className="group">
                         <div className="grid grid-cols-[2fr_1.2fr_1fr_1fr_1fr_2fr] px-4 py-3.5 hover:bg-slate-50/70 transition-colors items-center">
                           {/* Employee */}
                           <div className="td py-0 flex items-center gap-2.5">
                             <div className="w-7 h-7 rounded-lg gradient-bg flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                              {expense.employee.split(' ').map(n => n[0]).join('')}
+                              {bill.employee_name.split(' ').map(n => n[0]).join('')}
                             </div>
                             <div>
-                              <p className="text-sm font-semibold text-slate-800">{expense.employee}</p>
-                              <p className="text-xs text-slate-400 truncate max-w-[140px]">{expense.description}</p>
+                              <p className="text-sm font-semibold text-slate-800">{bill.employee_name}</p>
+                              <p className="text-xs text-slate-400 truncate max-w-[140px]">{bill.title}</p>
                             </div>
                           </div>
                           {/* Category */}
                           <div className="td py-0">
-                            <span className="text-xs bg-slate-100 px-2 py-1 rounded-lg font-medium text-slate-600">{expense.category}</span>
+                            <span className="text-xs bg-slate-100 px-2 py-1 rounded-lg font-medium text-slate-600">{bill.category || 'Other'}</span>
                           </div>
                           {/* Amount */}
-                          <div className="td py-0 font-semibold font-mono">${expense.amount.toFixed(2)}</div>
+                          <div className="td py-0 font-semibold font-mono">${Number(bill.amount).toFixed(2)}</div>
                           {/* Date */}
-                          <div className="td py-0 font-mono text-xs text-slate-500">{expense.date}</div>
+                          <div className="td py-0 font-mono text-xs text-slate-500">{new Date(bill.created_at).toLocaleDateString()}</div>
                           {/* Status */}
-                          <div className="td py-0"><StatusBadge status={expense.status} /></div>
+                          <div className="td py-0"><StatusBadge status={getOverallStatus(bill)} /></div>
                           {/* Actions */}
                           <div className="td py-0 flex items-center gap-1.5">
-                            {expense.status === 'Pending' ? (
+                            {bill.current_stage === 'manager_review' ? (
                               <>
                                 <button
-                                  onClick={() => handleAction(expense.id, 'Approved')}
+                                  onClick={() => handleAction(bill.id, 'approved')}
                                   className="btn-success py-1.5 px-3 text-xs"
                                 >
                                   <CheckCircle size={12} /> Approve
                                 </button>
                                 <button
-                                  onClick={() => handleAction(expense.id, 'Rejected')}
+                                  onClick={() => handleAction(bill.id, 'rejected')}
                                   className="btn-danger py-1.5 px-3 text-xs"
                                 >
                                   <XCircle size={12} /> Reject
                                 </button>
                                 <button
-                                  onClick={() => setCommentOpen(commentOpen === expense.id ? null : expense.id)}
+                                  onClick={() => setCommentOpen(commentOpen === bill.id ? null : bill.id)}
                                   className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
                                   title="Add comment"
                                 >
@@ -143,29 +177,28 @@ const ManagerDashboard = ({ user, onLogout }) => {
                                 </button>
                               </>
                             ) : (
-                              <button
-                                onClick={() => handleAction(expense.id, 'Pending')}
-                                className="btn-ghost py-1.5 px-3 text-xs text-slate-400"
-                              >
-                                Undo
-                              </button>
+                                <span className="text-xs text-slate-400 pl-2">Completed</span>
                             )}
                           </div>
                         </div>
 
                         {/* Comment Box */}
-                        {commentOpen === expense.id && (
+                        {commentOpen === bill.id && (
                           <div className="px-4 pb-4 bg-slate-50/50">
+                            <div className="text-xs text-slate-500 py-2">
+                               {bill.admin_comment && <div className="mb-1 text-blue-600 ">🛡️ Admin Comment: {bill.admin_comment}</div>}
+                               {bill.description && <div>📝 Description: {bill.description}</div>}
+                            </div>
                             <div className="flex gap-2 mt-1">
                               <input
                                 type="text"
-                                placeholder="Add a comment (optional)…"
-                                value={comments[expense.id] || ''}
-                                onChange={(e) => setComments({ ...comments, [expense.id]: e.target.value })}
+                                placeholder="Add manager comment (optional)…"
+                                value={comments[bill.id] || ''}
+                                onChange={(e) => setComments({ ...comments, [bill.id]: e.target.value })}
                                 className="input text-xs py-2 flex-1"
                               />
-                              <button onClick={() => handleAction(expense.id, 'Approved')} className="btn-success text-xs py-2 px-3">Approve with comment</button>
-                              <button onClick={() => handleAction(expense.id, 'Rejected')} className="btn-danger text-xs py-2 px-3">Reject with comment</button>
+                              <button onClick={() => handleAction(bill.id, 'approved')} className="btn-success text-xs py-2 px-3">Approve with comment</button>
+                              <button onClick={() => handleAction(bill.id, 'rejected')} className="btn-danger text-xs py-2 px-3">Reject with comment</button>
                             </div>
                           </div>
                         )}
@@ -177,48 +210,7 @@ const ManagerDashboard = ({ user, onLogout }) => {
             </>
           )}
 
-          {activePage === 'team' && (
-            <div className="card">
-              <div className="px-6 py-4 border-b border-slate-100">
-                <h3 className="font-semibold text-slate-800">Team Overview</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Direct reports</p>
-              </div>
-              <div className="p-6 grid grid-cols-2 gap-4">
-                {['Alex Morgan', 'Jordan Lee'].map((name) => {
-                  const empExpenses = expenses.filter(e => e.employee === name);
-                  const total = empExpenses.reduce((s, e) => s + e.amount, 0);
-                  const pending = empExpenses.filter(e => e.status === 'Pending').length;
-                  return (
-                    <div key={name} className="p-5 rounded-2xl border border-slate-100 hover:shadow-card-hover transition-shadow">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 rounded-xl gradient-bg flex items-center justify-center text-white text-sm font-bold">
-                          {name.split(' ').map(n => n[0]).join('')}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-slate-800">{name}</p>
-                          <p className="text-xs text-slate-400">Employee</p>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="text-center p-2 bg-slate-50 rounded-xl">
-                          <p className="text-lg font-bold text-slate-800 font-display">{empExpenses.length}</p>
-                          <p className="text-[10px] text-slate-400 uppercase tracking-wider">Total</p>
-                        </div>
-                        <div className="text-center p-2 bg-amber-50 rounded-xl">
-                          <p className="text-lg font-bold text-amber-600 font-display">{pending}</p>
-                          <p className="text-[10px] text-amber-400 uppercase tracking-wider">Pending</p>
-                        </div>
-                        <div className="text-center p-2 bg-brand-50 rounded-xl">
-                          <p className="text-lg font-bold text-brand-600 font-display">${total.toFixed(0)}</p>
-                          <p className="text-[10px] text-brand-400 uppercase tracking-wider">Claimed</p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          {activePage === 'team' && <div className="p-8 text-center text-slate-400">Team Overview (Placeholder)</div>}
         </main>
       </div>
     </div>

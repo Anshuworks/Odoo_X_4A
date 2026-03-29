@@ -19,6 +19,16 @@ class ExpenseController {
     }
   }
 
+  static async getMyExpenses(req, res) {
+    try {
+      const expenses = await ExpenseService.getMyExpenses(req.user);
+      return res.status(200).json({ success: true, data: expenses });
+    } catch (error) {
+      console.error('Error fetching my expenses:', error);
+      return res.status(500).json({ message: 'Internal Server Error' });
+    }
+  }
+
   static async getPendingExpenses(req, res) {
     try {
       const user = req.user;

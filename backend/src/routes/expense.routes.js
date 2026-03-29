@@ -11,6 +11,7 @@ console.log("getPendingExpenses method:", !!ExpenseController.getPendingExpenses
 router.post('/create', ExpenseController.createExpense);
 
 // Line 12 is usually here - it MUST use ExpenseController.getPendingExpenses
+router.get('/my', ExpenseController.getMyExpenses);
 router.get('/pending', ExpenseController.getPendingExpenses);
 
 router.put('/approve/:id', ExpenseController.approveExpense);

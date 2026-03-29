@@ -36,6 +36,12 @@ class ExpenseService {
     return expenses || [];
   }
 
+  static async getPendingExpenses(user) {
+    const approverId = user.user_id || user.userId || user.id;
+    const expenses = await ExpenseModel.getPendingExpensesForApprover(approverId);
+    return expenses || [];
+  }
+
 }
 
 module.exports = ExpenseService;

@@ -42,6 +42,62 @@ class ExpenseController {
       return res.status(500).json({ message: 'Internal Server Error' });
     }
   }
+
+  static async getPendingExpenses(req, res) {
+    try {
+      const user = req.user;
+
+      if (user.role !== 'MANAGER' && user.role !== 'Manager' && user.role !== 'ADMIN' && user.role !== 'Admin') {
+        return res.status(403).json({ message: 'Forbidden: Only Managers and Admins can access this resource' });
+      }
+
+      const expenses = await ExpenseService.getPendingExpenses(user);
+
+      return res.status(200).json({
+        success: true,
+        data: expenses
+      });
+
+    } catch (error) {
+      console.error('Error fetching pending expenses:', error);
+      return res.status(500).json({ message: 'Internal Server Error' });
+    }
+  }
+
+  static async approveExpense(req, res) {
+    try {
+      const result = await ExpenseService.approveExpense(
+        req.params.id,
+        req.user
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: result
+      });
+
+    } catch (error) {
+      return res.status(400).json({ message: error.message });
+    }
+  }
+
+  static async rejectExpense(req, res) {
+    try {
+      const result = await ExpenseService.rejectExpense(
+        req.params.id,
+        req.user
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: result
+      });
+
+    } catch (error) {
+      return res.status(400).json({ message: error.message });
+    }
+  }
+
 }
 
 module.exports = ExpenseController;

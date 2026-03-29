@@ -6,6 +6,8 @@ const { authenticate } = require('../middleware/auth.middleware');
 // POST /api/expenses
 router.post('/', authenticate, ExpenseController.createExpense);
 
+router.get('/pending', authenticate, ExpenseController.getPendingExpenses);
+
 router.get('/my', authenticate, ExpenseController.getMyExpenses);
 
 // GET /my, GET /team placeholders remain if needed

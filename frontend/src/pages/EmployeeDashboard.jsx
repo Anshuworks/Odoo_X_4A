@@ -7,6 +7,31 @@ import StatusBadge from '../components/StatusBadge';
 import { mockExpenses, categories, ocrMockData } from '../data/mockData';
 import { Plus, Scan, Upload, DollarSign, Clock, CheckCircle, XCircle, Loader2, FileCheck } from 'lucide-react';
 
+import Tesseract from "tesseract.js";
+
+// OCR function
+const extractText = async (file) => {
+  const { data: { text } } = await Tesseract.recognize(file, "eng");
+  return text;
+};
+
+// Parser
+const parseReceipt = (text) => {
+  const amountMatch = text.match(/\d+\.\d{2}/);
+  const dateMatch = text.match(/\d{2}\/\d{2}\/\d{4}/);
+
+  let category = "Other";
+  if (text.toLowerCase().includes("pizza")) category = "Food";
+  if (text.toLowerCase().includes("uber")) category = "Travel";
+
+  return {
+    amount: amountMatch ? amountMatch[0] : "",
+    date: dateMatch ? dateMatch[0] : "",
+    description: text.split("\n")[0] || "",
+    category,
+  };
+};
+
 const EmployeeDashboard = ({ user, onLogout }) => {
   const [activePage, setActivePage] = useState('submit');
   const [activeTab, setActiveTab] = useState('All');
@@ -17,12 +42,93 @@ const EmployeeDashboard = ({ user, onLogout }) => {
     amount: '', category: '', description: '', date: '', receipt: null
   });
 
-  const handleOCR = () => {
-    setScanning(true);
-    setTimeout(() => {
-      setScanning(false);
-      setForm({ ...form, ...ocrMockData });
-    }, 1800);
+  const handleOCR = async () => {
+  if (!form.receipt) {
+    alert("Please upload a receipt first");
+    return;
+  }
+
+  setScanning(true);
+
+  try {
+    // 1. OCR
+    const { data: { text } } = await Tesseract.recognize(form.receipt, "eng");
+
+    // 2. PARSE TEXT
+    const amountMatch = text.match(/\d+\.\d{2}/);
+    const dateMatch = text.match(/\d{2}\/\d{2}\/\d{4}/);
+
+    let amount = amountMatch ? parseFloat(amountMatch[0]) : 0;
+    const date = dateMatch ? dateMatch[0] : "";
+    const description = text.split("\n")[0] || "";
+
+    // 3. CATEGORY DETECTION (basic AI)
+    let category = "Other";
+    if (text.toLowerCase().includes("pizza")) category = "Food";
+    if (text.toLowerCase().includes("uber")) category = "Travel";
+    if (text.toLowerCase().includes("hotel")) category = "Accommodation";
+
+    // 4. CURRENCY DETECTION
+    let detectedCurrency = "USD"; // default
+    if (text.includes("₹")) detectedCurrency = "INR";
+    if (text.includes("$")) detectedCurrency = "USD";
+    if (text.includes("€")) detectedCurrency = "EUR";
+
+    const companyCurrency = "USD"; // 👉 change if needed
+
+    let finalAmount = amount;
+
+    // 5. CURRENCY CONVERSION (only if different)
+    if (amount && detectedCurrency !== companyCurrency) {
+      try {
+        const res = await fetch(
+          `https://api.exchangerate-api.com/v4/latest/${detectedCurrency}`
+        );
+        const data = await res.json();
+
+        const rate = data.rates[companyCurrency];
+
+        if (rate) {
+          finalAmount = amount * rate;
+        }
+      } catch (err) {
+        console.error("Currency conversion failed", err);
+      }
+    }
+
+    // 6. UPDATE FORM
+    setForm((prev) => ({
+      ...prev,
+      amount: finalAmount.toFixed(2),
+      date,
+      description,
+      category,
+    }));
+
+  } catch (err) {
+    console.error(err);
+    alert("OCR failed");
+  }
+
+  setScanning(false);
+};
+ {!scanning && form.amount && (
+  <p className="text-xs text-emerald-500 mt-2">
+    Auto-filled from receipt (you can edit)
+  </p>
+ )}
+
+  const detectCurrency = (text) => {
+  if (text.includes("$")) return "USD";
+  if (text.includes("₹")) return "INR";
+  if (text.includes("€")) return "EUR";
+  return "USD";
+  };
+
+  const convertCurrency = async (amount, from, to) => {
+  const res = await fetch(`https://api.exchangerate-api.com/v4/latest/${from}`);
+  const data = await res.json();
+  return amount * data.rates[to];
   };
 
   const handleSubmit = () => {

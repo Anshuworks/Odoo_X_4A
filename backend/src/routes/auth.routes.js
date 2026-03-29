@@ -2,15 +2,10 @@ const express = require('express');
 const router = express.Router();
 const AuthController = require('../controllers/auth.controller');
 
-// Register route
-router.post('/register', AuthController.register);
+const authController = require('../controllers/auth.controller');
 
-// Login route
-router.post('/login', AuthController.login);
-
-// Optional test route
-router.get('/', (req, res) => {
-  res.send("Auth API working 🚀");
-});
+// ✅ Both routes working
+router.post('/signup', authController.signup);
+router.post('/login', authController.login);
 
 module.exports = router;

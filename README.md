@@ -1,7 +1,7 @@
-# 💸 MoneyMatters – Smart Reimbursement Management System
+# 💸 MoneyMatters - Smart Reimbursement Management System
 
 ## 🚀 Overview
-MoneyMatters is a full-stack expense reimbursement platform designed to simplify and automate the entire expense lifecycle — from submission to approval.
+MoneyMatters is a full-stack expense reimbursement platform designed to simplify and automate the entire expense lifecycle - from submission to approval.
 
 It replaces manual, error-prone processes with a clean, efficient, and scalable workflow system.
 
@@ -91,6 +91,9 @@ MoneyMatters provides:
 ### Backend
 - Node.js  
 
+### Database
+- PostgreSQL  
+
 ### APIs & Tools
 - Tesseract.js (OCR)  
 - Exchange Rate API (currency conversion)  
@@ -106,9 +109,10 @@ MoneyMatters provides:
 ---
 
 ## 🎥 Demo Video
-![DEMO](./screenshots/moneymatters.png)
-👉 Watch full demo here:  
-🔗 https://drive.google.com/drive/folders/1Wbd0O7VJGeuyXZsQ53CaUaiqjkp6ZnIX  
+
+[![Watch Demo](./screenshots/moneymatters.png)](https://drive.google.com/drive/folders/1Wbd0O7VJGeuyXZsQ53CaUaiqjkp6ZnIX)
+
+👉 Click the image above to watch the full demo  
 
 ---
 
@@ -144,8 +148,7 @@ MoneyMatters provides:
 
 - **Akshat Mishra**
   - OCR implementation  
-  - Currency conversion feature  
-  - Employee dashboard development  
+  - Currency conversion feature    
 
 - **Ayush Kumar**
   - Backend APIs  
@@ -156,16 +159,17 @@ MoneyMatters provides:
   - Dashboard components  
 
 - **Anshu Kumar**
+  - Employee dashboard development
   - Integration & testing  
 
 ---
 
 ## ⚡ Team Split (7 hrs Hackathon Execution)
 
-- P1: Backend — Auth, User CRUD, Company, Currency API  
-- P2: Backend — Expenses, Approval Engine (sequential/conditional)  
-- P3: Frontend — Auth pages, Employee dashboard  
-- P4: Frontend — Manager/Admin dashboards, Rule builder  
+- P1: Backend - Auth, User CRUD, Company, Currency API  
+- P2: Backend - Expenses, Approval Engine (sequential/conditional)  
+- P3: Frontend - Auth pages, Employee dashboard  
+- P4: Frontend - Manager/Admin dashboards, Rule builder  
 
 ---
 
@@ -178,4 +182,4 @@ MoneyMatters provides:
 ---
 
 ## 🏁 Conclusion
-MoneyMatters transforms traditional reimbursement systems into a smart, automated, and scalable solution — making every expense truly matter.
+MoneyMatters transforms traditional reimbursement systems into a smart, automated, and scalable solution - making every expense truly matter.

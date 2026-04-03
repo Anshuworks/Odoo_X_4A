@@ -47,6 +47,14 @@ class ExpenseModel {
         });
     }
 
+    static async getAdmin() {
+        const prisma = require('../config/prisma');
+
+        return await prisma.user.findFirst({
+            where: { role: 'ADMIN' }
+        });
+    }
+
 }
 
 module.exports = ExpenseModel;

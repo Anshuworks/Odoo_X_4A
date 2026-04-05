@@ -51,7 +51,9 @@ exports.getAdminBills = async (req, res) => {
       `SELECT b.*, u.name AS employee_name, u.email AS employee_email
        FROM bills b
        JOIN users u ON u.id = b.user_id
-       ORDER BY b.created_at DESC`
+       WHERE u.company_id = $1
+       ORDER BY b.created_at DESC`,
+       [req.user.company_id]
     );
 
     return res.json({ success: true, data: result.rows });
@@ -74,14 +76,21 @@ exports.adminAction = async (req, res) => {
   }
 
   try {
-    // Verify bill is at admin_review stage
-    const billCheck = await pool.query("SELECT * FROM bills WHERE id = $1", [id]);
+    // Verify bill is at admin_review stage and belongs to same company
+    const billCheck = await pool.query(
+        "SELECT b.*, u.company_id FROM bills b JOIN users u ON u.id = b.user_id WHERE b.id = $1", 
+        [id]
+    );
 
     if (billCheck.rows.length === 0) {
       return res.status(404).json({ success: false, message: "Bill not found" });
     }
 
     const bill = billCheck.rows[0];
+
+    if (bill.company_id !== req.user.company_id) {
+      return res.status(403).json({ success: false, message: "Unauthorized access to bill" });
+    }
 
     if (bill.current_stage !== "admin_review") {
       return res.status(400).json({
@@ -91,19 +100,52 @@ exports.adminAction = async (req, res) => {
     }
 
     // Determine next stage
-    const nextStage = action === "approved" ? "manager_review" : "completed";
+    let nextStage = "completed";
+    let autoApproveManager = false;
 
-    const result = await pool.query(
-      `UPDATE bills
-       SET admin_status = $1,
-           admin_comment = $2,
-           admin_reviewed_at = NOW(),
-           admin_reviewer_id = $3,
-           current_stage = $4
-       WHERE id = $5
-       RETURNING *`,
-      [action, comment || null, adminId, nextStage, id]
-    );
+    if (action === "approved") {
+      const managerCheck = await pool.query(
+        "SELECT id FROM users WHERE role = 'manager' AND company_id = $1 LIMIT 1",
+        [req.user.company_id]
+      );
+
+      if (managerCheck.rows.length > 0) {
+        nextStage = "manager_review";
+      } else {
+        nextStage = "completed";
+        autoApproveManager = true;
+      }
+    }
+
+    let result;
+    if (autoApproveManager) {
+      result = await pool.query(
+        `UPDATE bills
+         SET admin_status = $1,
+             admin_comment = $2,
+             admin_reviewed_at = NOW(),
+             admin_reviewer_id = $3,
+             manager_status = 'approved',
+             manager_comment = 'Auto-approved (No manager)',
+             manager_reviewed_at = NOW(),
+             current_stage = $4
+         WHERE id = $5
+         RETURNING *`,
+        [action, comment || null, adminId, nextStage, id]
+      );
+    } else {
+      result = await pool.query(
+        `UPDATE bills
+         SET admin_status = $1,
+             admin_comment = $2,
+             admin_reviewed_at = NOW(),
+             admin_reviewer_id = $3,
+             current_stage = $4
+         WHERE id = $5
+         RETURNING *`,
+        [action, comment || null, adminId, nextStage, id]
+      );
+    }
 
     console.log(`✅ Admin ${action} bill ${id} → stage: ${nextStage}`);
 
@@ -127,7 +169,9 @@ exports.getManagerBills = async (req, res) => {
       `SELECT b.*, u.name AS employee_name, u.email AS employee_email
        FROM bills b
        JOIN users u ON u.id = b.user_id
-       ORDER BY b.created_at DESC`
+       WHERE u.company_id = $1
+       ORDER BY b.created_at DESC`,
+       [req.user.company_id]
     );
 
     return res.json({ success: true, data: result.rows });
@@ -150,14 +194,21 @@ exports.managerAction = async (req, res) => {
   }
 
   try {
-    // Verify bill is at manager_review stage
-    const billCheck = await pool.query("SELECT * FROM bills WHERE id = $1", [id]);
+    // Verify bill is at manager_review stage and belongs to same company
+    const billCheck = await pool.query(
+        "SELECT b.*, u.company_id FROM bills b JOIN users u ON u.id = b.user_id WHERE b.id = $1", 
+        [id]
+    );
 
     if (billCheck.rows.length === 0) {
       return res.status(404).json({ success: false, message: "Bill not found" });
     }
 
     const bill = billCheck.rows[0];
+    
+    if (bill.company_id !== req.user.company_id) {
+      return res.status(403).json({ success: false, message: "Unauthorized access to bill" });
+    }
 
     if (bill.current_stage !== "manager_review") {
       return res.status(400).json({

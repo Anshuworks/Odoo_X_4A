@@ -5,7 +5,11 @@ import Table from '../components/Table';
 import StatusBadge from '../components/StatusBadge';
 import { categories } from '../data/mockData';
 import { getMyBills, createBill, uploadReceipt, scanReceipt, convertCurrency } from '../api';
-import { Plus, Scan, Upload, DollarSign, Clock, CheckCircle, XCircle, Loader2, FileCheck, Coins } from 'lucide-react';
+import { getFullFileUrl } from '../utils/fileUtils';
+import { 
+  Plus, Scan, Upload, DollarSign, Clock, CheckCircle, XCircle, 
+  Loader2, FileCheck, Coins, Shield, ExternalLink, Inbox, Filter, FileText 
+} from 'lucide-react';
 
 const currencies = [
   { code: 'USD', symbol: '$' },
@@ -187,7 +191,6 @@ const EmployeeDashboard = ({ user, onLogout }) => {
 
   const filteredBills = bills.filter(b => getTabFilter(activeTab, b));
 
-  // Stats calculation (converted to USD)
   const totalUsd = bills.reduce((s, b) => s + Number(b.converted_amount || 0), 0);
   const inProgress = bills.filter(b => b.current_stage !== 'completed').length;
   const approved = bills.filter(b => b.current_stage === 'completed' && b.manager_status === 'approved').length;
@@ -199,18 +202,17 @@ const EmployeeDashboard = ({ user, onLogout }) => {
     return bill.current_stage;
   }
 
-  const billColumns = [
-    { key: 'title', label: 'Title', render: (val) => <span className="font-medium text-slate-800">{val}</span> },
-    { key: 'category', label: 'Category', render: (val) => <span className="text-xs bg-slate-100 px-2 py-1 rounded-lg font-medium text-slate-600">{val || 'Other'}</span> },
-    { key: 'created_at', label: 'Date', render: (val) => <span className="font-mono text-xs text-slate-500">{new Date(val).toLocaleDateString()}</span> },
-    { key: 'amount', label: 'Amount', render: (_, row) => (
-      <div className="flex flex-col">
-        <span className="font-semibold font-mono">{currencies.find(c => c.code === row.currency)?.symbol}{Number(row.amount).toFixed(2)}</span>
-        {row.currency !== 'USD' && <span className="text-[10px] text-slate-400">≈ ${Number(row.converted_amount).toFixed(2)} USD</span>}
+  const StatCard = ({ icon: Icon, label, value, color }) => (
+    <div className="card p-5 flex items-center gap-4 group cursor-default">
+      <div className={`stat-card-icon ${color} text-white transition-transform group-hover:scale-110 duration-300`}>
+        <Icon size={20} />
       </div>
-    )},
-    { key: 'status', label: 'Status', render: (_, row) => <StatusBadge status={getOverallStatus(row)} /> },
-  ];
+      <div>
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">{label}</p>
+        <p className="text-xl font-bold text-slate-800 tracking-tight">{value}</p>
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex min-h-screen bg-[#F5F6FA]">
@@ -219,208 +221,277 @@ const EmployeeDashboard = ({ user, onLogout }) => {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Navbar user={user} title={activePage === 'submit' ? 'Submit Expense' : 'My Expenses'} />
 
-        <main className="flex-1 p-6 overflow-y-auto space-y-6">
+        <main className="flex-1 overflow-y-auto">
+          <div className="page-container py-6 space-y-6">
+            {showSuccess && (
+              <div className="fixed top-4 right-4 z-50 flex items-center gap-3 bg-emerald-500 text-white px-4 py-3 rounded-xl shadow-lg animate-in slide-in-from-right">
+                <Plus size={18} className="rotate-45" />
+                <span className="text-sm font-semibold">Claim successfully logged</span>
+              </div>
+            )}
 
-          {/* Success toast */}
-          {showSuccess && (
-            <div className="fixed top-4 right-4 z-50 flex items-center gap-3 bg-emerald-500 text-white px-4 py-3 rounded-xl shadow-lg animate-in slide-in-from-right">
-              <FileCheck size={18} />
-              <span className="text-sm font-semibold">Bill submitted successfully!</span>
-            </div>
-          )}
-
-          {/* SUBMIT EXPENSE */}
-          {activePage === 'submit' && (
-            <div className="max-w-3xl mx-auto">
-              <div className="card p-8 bg-white border-none shadow-sm">
-                <div className="flex items-center justify-between mb-8">
+            {activePage === 'submit' && (
+              <div className="max-w-4xl mx-auto space-y-6">
+                <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-xl font-bold text-slate-800">New Bill</h3>
-                    <p className="text-sm text-slate-400">Fill in the details or auto-scan your receipt</p>
+                      <h3 className="text-xl font-bold text-slate-800 tracking-tight">Claim Submission</h3>
+                      <p className="text-xs text-slate-400">Draft your reimbursement request for verification</p>
                   </div>
-                  {/* OCR Button */}
                   <button
-                    onClick={handleOCR}
-                    disabled={scanning || !form.receipt_url}
-                    className={`btn-secondary gap-2 border-none bg-slate-50 hover:bg-slate-100 ${scanning ? 'opacity-50' : ''}`}
+                      onClick={handleOCR}
+                      disabled={scanning || !form.receipt_url}
+                      className={`btn-secondary h-10 px-4 gap-2 bg-indigo-600 text-white border-none hover:bg-slate-800 shadow-md transition-all ${scanning ? 'opacity-50' : ''}`}
                   >
-                    {scanning ? (
+                      {scanning ? (
                       <>
-                        <Loader2 size={16} className="animate-spin text-[#6C47FF]" />
-                        <span className="text-[#6C47FF] font-semibold">Scanning…</span>
+                          <Loader2 size={16} className="animate-spin" />
+                          <span className="font-bold tracking-widest text-[10px] uppercase">Scanning…</span>
                       </>
-                    ) : (
+                      ) : (
                       <>
-                        <Scan size={16} />
-                        Scan Receipt
+                          <Scan size={16} />
+                          <span className="font-bold tracking-widest text-[10px] uppercase">Auto-Detect</span>
                       </>
-                    )}
+                      )}
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Title */}
-                  <div className="col-span-1 md:col-span-2">
-                    <label className="label">Title *</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Flight to NYC or Lunch at Capital Grille"
-                      value={form.title}
-                      onChange={(e) => setForm({ ...form, title: e.target.value })}
-                      className="input"
-                    />
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-2 space-y-6">
+                      <div className="card p-6 bg-white space-y-6">
+                          <div>
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Purpose of Expense</label>
+                              <input
+                                  type="text"
+                                  placeholder="e.g. Client Dinner, Travel to HQ"
+                                  value={form.title}
+                                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                                  className="input w-full px-4 text-sm"
+                              />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Monetary Value</label>
+                                  <div className="flex gap-2 p-1 bg-slate-50 border border-slate-200 rounded-xl focus-within:ring-4 focus-within:ring-indigo-500/10 focus-within:border-indigo-500 transition-all focus-within:bg-white">
+                                      <select 
+                                          className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-[10px] font-black text-slate-700 focus:outline-none"
+                                          value={form.currency}
+                                          onChange={(e) => setForm({ ...form, currency: e.target.value })}
+                                      >
+                                          {currencies.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
+                                      </select>
+                                      <div className="relative flex-1">
+                                          <input
+                                              type="number"
+                                              placeholder="0.00"
+                                              value={form.amount}
+                                              onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                                              className="w-full px-2 py-2 text-base font-bold text-slate-800 bg-transparent border-none focus:ring-0 placeholder:text-slate-300"
+                                          />
+                                          {converting && <div className="absolute right-2 top-1/2 -translate-y-1/2"><Loader2 size={14} className="animate-spin text-indigo-500" /></div>}
+                                      </div>
+                                  </div>
+                                  {form.currency !== 'USD' && form.amount && (
+                                  <p className="text-[9px] font-bold text-indigo-500 mt-2 px-2 py-1 bg-indigo-50 border border-indigo-100 rounded-lg w-fit flex items-center gap-1.5 animate-in fade-in slide-in-from-top-1">
+                                      <Coins size={10} />
+                                      Swap: ${form.converted_amount_usd.toFixed(2)} USD
+                                  </p>
+                                  )}
+                              </div>
+
+                              <div>
+                                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Classification</label>
+                                  <select
+                                      value={form.category}
+                                      onChange={(e) => setForm({ ...form, category: e.target.value })}
+                                      className="input w-full px-4 text-sm"
+                                  >
+                                      {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                                  </select>
+                              </div>
+                          </div>
+
+                          <div>
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">Supplementary Notes</label>
+                              <textarea
+                                  placeholder="Document business context…"
+                                  value={form.description}
+                                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all font-medium h-24 resize-none placeholder:text-slate-300"
+                              />
+                          </div>
+                      </div>
                   </div>
 
-                  {/* Amount & Currency */}
+                  <div className="space-y-6">
+                      <div className="card p-6 bg-white">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block ml-1 text-center">Receipt Evidence</label>
+                          <div className="border-2 border-dashed border-slate-100 rounded-2xl p-6 flex flex-col items-center justify-center hover:border-indigo-500/30 hover:bg-slate-50 transition-all cursor-pointer relative group min-h-[180px]">
+                              <input
+                                  type="file"
+                                  accept="image/*,.pdf"
+                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                  onChange={handleFileUpload}
+                              />
+                              <div className="flex flex-col items-center justify-center pointer-events-none text-center">
+                                  {form.receipt_name ? (
+                                  <div className="flex flex-col items-center gap-3 animate-in zoom-in-95 duration-300">
+                                      <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-500">
+                                      <FileCheck size={24} />
+                                      </div>
+                                      <div>
+                                          <p className="text-[10px] font-black text-slate-800 uppercase tracking-widest line-clamp-1 max-w-[120px] mb-0.5">{form.receipt_name}</p>
+                                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight">Attached</p>
+                                      </div>
+                                  </div>
+                                  ) : (
+                                  <div className="flex flex-col items-center gap-3 opacity-60 group-hover:opacity-100 transition-opacity">
+                                      <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:text-indigo-600 group-hover:bg-white group-hover:shadow-md transition-all">
+                                      <Upload size={24} />
+                                      </div>
+                                      <div>
+                                          <p className="text-[11px] font-black text-slate-800 uppercase tracking-widest mb-0.5">Upload Receipt</p>
+                                          <p className="text-[9px] text-slate-400 font-bold">Image or PDF</p>
+                                      </div>
+                                  </div>
+                                  )}
+                              </div>
+                          </div>
+                          <div className="mt-6 space-y-2">
+                              <button 
+                                  onClick={handleSubmit} 
+                                  disabled={loading || !form.title || !form.amount} 
+                                  className="w-full btn-primary h-11 rounded-xl uppercase tracking-widest font-black text-[11px] disabled:opacity-30"
+                              >
+                                  {loading ? <Loader2 size={18} className="animate-spin" /> : 'Submit Claim'}
+                              </button>
+                              <button onClick={() => setForm({ ...form, title: '', amount: '', description: '', receipt_url: '', receipt_name: '', receipt_file: null })} className="w-full py-2 text-[9px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest transition-colors">
+                                  Discard Draft
+                              </button>
+                          </div>
+                      </div>
+
+                      <div className="p-5 bg-slate-800 rounded-2xl text-white shadow-xl relative overflow-hidden group">
+                          <div className="absolute -right-6 -bottom-6 p-10 bg-white/5 rounded-full group-hover:scale-110 transition-transform">
+                              <Shield size={60} strokeWidth={1} />
+                          </div>
+                          <h4 className="text-[9px] font-black uppercase tracking-widest mb-1 opacity-60">Compliance Tip</h4>
+                          <p className="text-[10px] font-medium leading-relaxed opacity-90">Auto-scan detects amounts for faster approval. Ensure image is clear.</p>
+                      </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activePage === 'expenses' && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-400">
+                <div className="flex items-center justify-between">
                   <div>
-                    <label className="label">Amount *</label>
-                    <div className="flex gap-2">
-                      <select 
-                        className="input w-24 bg-slate-50 border-none font-bold"
-                        value={form.currency}
-                        onChange={(e) => setForm({ ...form, currency: e.target.value })}
-                      >
-                        {currencies.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
-                      </select>
-                      <div className="relative flex-1">
-                        <input
-                          type="number"
-                          placeholder="0.00"
-                          value={form.amount}
-                          onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                          className="input"
-                        />
-                        {converting && <div className="absolute right-3 top-1/2 -translate-y-1/2"><Loader2 size={14} className="animate-spin text-slate-300" /></div>}
+                      <h3 className="text-xl font-bold text-slate-800 tracking-tight">Reimbursement Ledger</h3>
+                      <p className="text-xs text-slate-400">Register of all your submitted reimbursement claims</p>
+                  </div>
+                  <button onClick={() => setActivePage('submit')} className="btn-primary h-10 px-4 gap-2">
+                      <Plus size={16} /> Submit New
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <StatCard icon={DollarSign} label="Portfolio Value" value={`$${totalUsd.toLocaleString()}`} color="bg-indigo-600" />
+                  <StatCard icon={Clock} label="In Pipeline" value={inProgress} color="bg-amber-500" />
+                  <StatCard icon={CheckCircle} label="Settled" value={approved} color="bg-emerald-500" />
+                  <StatCard icon={XCircle} label="Rejected" value={rejected} color="bg-rose-500" />
+                </div>
+
+                <div className="card overflow-hidden">
+                  <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
+                    <div className="flex items-center gap-6">
+                      <div className="flex items-center gap-2">
+                          <Filter size={14} className="text-indigo-600" />
+                          <span className="text-[11px] font-black text-slate-800 uppercase tracking-widest text-shadow-sm">Filter Registry</span>
+                      </div>
+                      <div className="flex gap-1 p-1 bg-slate-100/50 rounded-xl border border-slate-200/60">
+                          {tabs.map(t => (
+                          <button
+                              key={t}
+                              onClick={() => setActiveTab(t)}
+                              className={`whitespace-nowrap px-4 py-1.5 text-[10px] font-bold rounded-lg transition-all uppercase tracking-widest ${activeTab === t ? 'bg-white text-indigo-600 shadow-sm border border-slate-200' : 'text-slate-400 hover:text-slate-600'}`}
+                          >
+                              {t}
+                          </button>
+                          ))}
                       </div>
                     </div>
-                    {form.currency !== 'USD' && form.amount && (
-                      <p className="text-[11px] text-[#6C47FF] font-semibold mt-1.5 flex items-center gap-1">
-                        <Coins size={10} />
-                        ≈ ${form.converted_amount_usd.toFixed(2)} USD (Live Rate)
-                      </p>
-                    )}
                   </div>
-
-                  {/* Category */}
-                  <div>
-                    <label className="label">Category</label>
-                    <select
-                      value={form.category}
-                      onChange={(e) => setForm({ ...form, category: e.target.value })}
-                      className="input"
-                    >
-                      {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-
-                  {/* Description */}
-                  <div className="col-span-1 md:col-span-2">
-                    <label className="label">Description</label>
-                    <textarea
-                      placeholder="Brief description of the expense"
-                      value={form.description}
-                      onChange={(e) => setForm({ ...form, description: e.target.value })}
-                      className="input min-h-[100px]"
-                    />
-                  </div>
-
-                  {/* Attachment */}
-                  <div className="col-span-1 md:col-span-2">
-                    <label className="label">Attachment (Receipt)</label>
-                    <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 flex flex-col items-center justify-center hover:border-[#6C47FF]/50 transition-colors cursor-pointer relative group min-h-[160px]">
-                      <input
-                        type="file"
-                        accept="image/*,.pdf"
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                        onChange={handleFileUpload}
-                      />
-                      <div className="flex flex-col items-center justify-center pointer-events-none">
-                        {form.receipt_name ? (
-                          <div className="flex flex-col items-center gap-2">
-                            <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-500">
-                              <FileCheck size={24} />
-                            </div>
-                            <p className="text-sm font-semibold text-slate-700">{form.receipt_name}</p>
-                            <p className="text-xs text-slate-400">Click or drag to replace</p>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center gap-2">
-                            <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:text-[#6C47FF] group-hover:bg-[#6C47FF]/10 transition-colors">
-                              <Upload size={24} />
-                            </div>
-                            <p className="text-sm font-semibold text-slate-600">Upload receipt...</p>
-                            <p className="text-xs text-slate-400">Accepted types: .jpg, .png, .pdf (Max 5MB)</p>
-                          </div>
-                        )}
+                  
+                  {filteredBills.length === 0 ? (
+                    <div className="p-12 text-center flex flex-col items-center">
+                        <div className="w-14 h-14 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-200 mb-4">
+                            <Inbox size={28} />
+                        </div>
+                        <h4 className="text-base font-bold text-slate-800 mb-1">No matches</h4>
+                        <p className="text-xs text-slate-400">No claims found in this category.</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-100">
+                      <div className="hidden lg:grid grid-cols-[2.5fr_1fr_1fr_1.5fr_1fr] px-6 py-3 bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                        <div>Description</div>
+                        <div>Valuation</div>
+                        <div>Submitted</div>
+                        <div className="text-center">Lifecycle</div>
+                        <div className="text-right pr-4">Evidence</div>
                       </div>
-                    </div>
-                  </div>
-                </div>
 
-                <div className="flex items-center justify-between mt-10 pt-6 border-t border-slate-100">
-                  <button onClick={() => setForm({ ...form, title: '', amount: '', description: '', receipt_url: '', receipt_name: '', receipt_file: null })} className="btn-secondary">
-                    Clear form
-                  </button>
-                  <button onClick={handleSubmit} disabled={loading || !form.title || !form.amount} className="btn-primary min-w-[160px]">
-                    {loading ? <Loader2 size={18} className="animate-spin" /> : (
-                      <>
-                        <Plus size={18} />
-                        Submit Bill
-                      </>
-                    )}
-                  </button>
+                      {filteredBills.map((bill) => (
+                        <div key={bill.id} className="flex flex-col lg:grid lg:grid-cols-[2.5fr_1fr_1fr_1.5fr_1fr] px-6 py-4 hover:bg-slate-50/50 transition-colors items-center gap-4 lg:gap-0 group">
+                          <div className="w-full lg:w-auto flex items-start gap-4">
+                            <div className="w-9 h-9 rounded-xl bg-white border border-slate-100 flex items-center justify-center flex-shrink-0 shadow-sm group-hover:border-indigo-200 transition-colors">
+                                <FileText size={18} className="text-slate-300 group-hover:text-indigo-400" />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-xs font-bold text-slate-800 leading-tight mb-1 truncate">{bill.title}</p>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">{bill.category || 'General'}</p>
+                            </div>
+                          </div>
+
+                          <div className="w-full lg:w-auto flex flex-col">
+                              <span className="font-bold font-mono text-xs text-slate-700 tracking-tight">
+                                {currencies.find(c => c.code === bill.currency)?.symbol}{Number(bill.amount).toFixed(2)}
+                              </span>
+                              {bill.currency !== 'USD' && (
+                                <span className="text-[9px] font-bold text-indigo-500">≈ ${Number(bill.converted_amount).toFixed(2)} USD</span>
+                              )}
+                          </div>
+
+                          <div className="w-full lg:w-auto font-mono text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
+                              {new Date(bill.created_at).toLocaleDateString()}
+                          </div>
+
+                          <div className="w-full lg:w-auto flex justify-start lg:justify-center">
+                              <StatusBadge status={getOverallStatus(bill)} />
+                          </div>
+
+                          <div className="w-full lg:w-auto flex justify-start lg:justify-end lg:pr-4">
+                            {bill.receipt_url ? (
+                              <button 
+                                onClick={() => window.open(getFullFileUrl(bill.receipt_url), '_blank')}
+                                className="flex items-center gap-2 p-1.5 px-2.5 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all font-bold text-[9px] uppercase tracking-widest"
+                              >
+                                <ExternalLink size={10} />
+                                Receipt
+                              </button>
+                            ) : (
+                              <span className="text-[9px] text-slate-300 font-bold uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded-md">Missing</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* MY BILLS */}
-          {activePage === 'expenses' && (
-            <>
-              {/* Stats */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                  { label: 'Total Base (USD)', value: `$${totalUsd.toLocaleString()}`, icon: DollarSign, color: 'gradient-bg' },
-                  { label: 'In Progress', value: inProgress, icon: Clock, color: 'bg-amber-400 shadow-amber-200' },
-                  { label: 'Approved', value: approved, icon: CheckCircle, color: 'bg-emerald-400 shadow-emerald-200' },
-                  { label: 'Rejected', value: rejected, icon: XCircle, color: 'bg-red-400 shadow-red-200' },
-                ].map(({ label, value, icon: Icon, color }) => (
-                  <div key={label} className="card p-5 flex items-center gap-4 hover:translate-y-[-2px] transition-all border-none shadow-sm">
-                    <div className={`w-11 h-11 rounded-full flex items-center justify-center text-white ${color} shadow-lg`}>
-                      <Icon size={20} />
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">{label}</p>
-                      <p className="text-xl font-bold text-slate-800 font-display">{value}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Table Container */}
-              <div className="card border-none shadow-sm overflow-hidden">
-                <div className="px-6 py-5 border-b border-slate-50 flex items-center justify-between">
-                  <div>
-                    <h3 className="font-bold text-slate-800">Bill History</h3>
-                    <p className="text-xs text-slate-400">Tracking your claim lifecycle</p>
-                  </div>
-                  {/* Tabs */}
-                  <div className="flex gap-1 p-1 bg-slate-50 rounded-full">
-                    {tabs.map(t => (
-                      <button
-                        key={t}
-                        onClick={() => setActiveTab(t)}
-                        className={`whitespace-nowrap px-4 py-1.5 text-xs font-bold rounded-full transition-all ${activeTab === t ? 'bg-[#6C47FF] text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}
-                      >
-                        {t}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <Table columns={billColumns} data={filteredBills} emptyMessage="No bills found in this stage" />
-              </div>
-            </>
-          )}
+            )}
+          </div>
         </main>
       </div>
     </div>

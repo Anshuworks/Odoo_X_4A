@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   LayoutDashboard, Users, ShieldCheck, Receipt,
-  CheckSquare, FileText, LogOut, Zap
+  CheckSquare, FileText, LogOut, Zap, ChevronRight
 } from 'lucide-react';
 
 const navItems = {
@@ -21,47 +21,67 @@ const navItems = {
   ],
 };
 
-const Sidebar = ({ role, activePage, onNavigate, onLogout }) => {
+const Sidebar = ({ role, activePage, onNavigate, onLogout, user }) => {
   const items = navItems[role] || [];
+  
+  const initials = user?.name
+    ?.split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase() || '??';
 
   return (
-    <aside className="w-60 flex-shrink-0 h-screen flex flex-col bg-white border-r border-slate-100 sticky top-0">
+    <aside className="w-64 flex-shrink-0 h-screen flex flex-col bg-white border-r border-slate-200/60 sticky top-0 z-30">
       {/* Logo */}
-      <div className="px-5 py-5 border-b border-slate-100">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl gradient-bg flex items-center justify-center shadow-sm">
-            <Zap size={16} className="text-white" />
+      <div className="px-6 py-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg shadow-indigo-500/10 flex items-center justify-center bg-white border border-slate-100">
+            <img src="/logo.png" alt="MoneyMatters" className="w-full h-full object-cover" />
           </div>
           <div>
-            <span className="font-display text-base font-bold text-slate-800 leading-none block">MoneyMatters</span>
-            <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
-              {role === 'admin' ? 'Admin Portal' : role === 'manager' ? 'Manager' : 'Employee'}
+            <span className="font-display text-base font-bold text-slate-800 leading-none block tracking-tight uppercase">MoneyMatters</span>
+            <span className="text-[9px] text-indigo-500 font-bold uppercase tracking-widest mt-1 block">
+              {role === 'admin' ? 'Enterprise' : 'Workspace'}
             </span>
           </div>
         </div>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-4 space-y-1.5 overflow-y-auto custom-scrollbar">
+        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 ml-2">Main Menu</div>
         {items.map(({ key, label, icon: Icon }) => (
           <button
             key={key}
             onClick={() => onNavigate(key)}
-            className={`w-full text-left ${activePage === key ? 'sidebar-link-active' : 'sidebar-link'}`}
+            className={`w-full group relative ${activePage === key ? 'sidebar-link-active' : 'sidebar-link'}`}
           >
-            <Icon size={16} className="flex-shrink-0" />
-            {label}
+            <Icon size={16} className={`${activePage === key ? 'text-white' : 'text-slate-400 group-hover:text-indigo-600'} transition-colors`} />
+            <span className="flex-1 text-left text-xs">{label}</span>
+            {activePage === key && (
+              <ChevronRight size={14} className="text-white/70" />
+            )}
           </button>
         ))}
       </nav>
 
-      {/* User + Logout */}
-      <div className="px-3 pb-4 border-t border-slate-100 pt-3">
+      {/* User Profile Summary */}
+      <div className="px-4 py-6 border-t border-slate-100 bg-slate-50/50">
+        <div className="flex items-center gap-3 p-2 rounded-2xl bg-white border border-slate-200/60 shadow-sm mb-3">
+            <div className="w-9 h-9 rounded-xl gradient-bg flex items-center justify-center text-white text-xs font-bold shadow-sm">
+                {initials}
+            </div>
+            <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-slate-800 truncate">{user?.name}</p>
+                <p className="text-[10px] text-slate-400 font-medium capitalize">{role}</p>
+            </div>
+        </div>
+        
         <button
           onClick={onLogout}
-          className="sidebar-link w-full text-red-400 hover:text-red-500 hover:bg-red-50"
+          className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs font-bold text-slate-500 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 transition-all duration-200"
         >
-          <LogOut size={16} />
+          <LogOut size={14} />
           Sign out
         </button>
       </div>

@@ -1,5 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate, authorize } = require('../middleware/auth.middleware');
-// GET /, POST /, PATCH /:id/role, PATCH /:id/manager
+const userController = require('../controllers/user.controller');
+const { authenticate } = require('../middleware/auth.middleware');
+
+router.get('/', authenticate, userController.getUsers);
+router.post('/', authenticate, userController.createUser);
+router.patch('/:id/manager', authenticate, userController.assignManager);
+
 module.exports = router;

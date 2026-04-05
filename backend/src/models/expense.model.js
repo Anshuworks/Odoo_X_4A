@@ -2,10 +2,21 @@ const prisma = require('../config/prisma');
 
 class ExpenseModel {
 
-    static async getExpensesByUserId(userId) {
+    static async createExpense(data) {
+        return await prisma.expense.create({
+            data: {
+                ...data, // includes amount, category, description, date, submittedById, companyId
+                currency: 'USD', // DB requires it
+                status: 'PENDING'
+            }
+        });
+    }
+
+    static async getExpensesByUserId(userId, companyId) {
         return await prisma.expense.findMany({
             where: {
-                submittedById: userId
+                submittedById: userId,
+                companyId: companyId
             },
             orderBy: {
                 createdAt: 'desc'
@@ -13,9 +24,10 @@ class ExpenseModel {
         });
     }
 
-    static async getPendingExpensesForApprover(approverId) {
+    static async getPendingExpensesForApprover(approverId, companyId) {
         return await prisma.expense.findMany({
             where: {
+                companyId: companyId,
                 status: 'PENDING',
                 approvalSteps: {
                     some: {
@@ -30,28 +42,28 @@ class ExpenseModel {
         });
     }
 
-    static async getById(id) {
-        const prisma = require('../config/prisma');
-
-        return await prisma.expense.findUnique({
-            where: { id: parseInt(id) }
+    static async getById(id, companyId) {
+        return await prisma.expense.findFirst({
+            where: { 
+                id: id,
+                companyId: companyId 
+            }
         });
     }
 
     static async updateExpense(id, data) {
-        const prisma = require('../config/prisma');
-
         return await prisma.expense.update({
-            where: { id: parseInt(id) },
+            where: { id: id },
             data
         });
     }
 
-    static async getAdmin() {
-        const prisma = require('../config/prisma');
-
+    static async getAdmin(companyId) {
         return await prisma.user.findFirst({
-            where: { role: 'ADMIN' }
+            where: { 
+                role: 'ADMIN',
+                companyId: companyId
+            }
         });
     }
 

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Zap, ArrowRight, Loader2 } from 'lucide-react';
-import { login, signup } from '../api';
+import { Eye, EyeOff, Zap, ArrowRight, Loader2, Building, UserPlus, XCircle } from 'lucide-react';
+import { login, createCompany, joinCompany } from '../api';
 
 const AuthPage = ({ onLogin }) => {
-  const [isLogin, setIsLogin] = useState(true);
+  const [authMode, setAuthMode] = useState('login'); // 'login' | 'create_company' | 'join_company'
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -12,7 +12,9 @@ const AuthPage = ({ onLogin }) => {
     name: '',
     email: '',
     password: '',
-    role: 'employee'
+    role: 'employee',
+    companyName: '',
+    inviteCode: ''
   });
 
   const handleSubmit = async (e) => {
@@ -21,9 +23,25 @@ const AuthPage = ({ onLogin }) => {
     setError('');
 
     try {
-      const response = isLogin 
-        ? await login({ email: formData.email, password: formData.password })
-        : await signup(formData);
+      let response;
+      if (authMode === 'login') {
+        response = await login({ email: formData.email, password: formData.password });
+      } else if (authMode === 'create_company') {
+        response = await createCompany({ 
+          name: formData.name, 
+          email: formData.email, 
+          password: formData.password, 
+          companyName: formData.companyName 
+        });
+      } else {
+        response = await joinCompany({ 
+          name: formData.name, 
+          email: formData.email, 
+          password: formData.password, 
+          role: formData.role, 
+          inviteCode: formData.inviteCode 
+        });
+      }
 
       if (response.data.token) {
         onLogin(response.data.user, response.data.token);
@@ -35,166 +53,231 @@ const AuthPage = ({ onLogin }) => {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-[#F5F6FA] flex items-center justify-center p-4">
-      <div className="max-w-4xl w-full bg-white rounded-[24px] shadow-2xl overflow-hidden flex min-h-[600px]">
-        
-        {/* Left Side - Visual */}
-        <div className="hidden md:flex w-1/2 gradient-bg p-12 flex-col justify-between relative overflow-hidden">
-          {/* Subtle Blob SVG */}
-          <svg className="absolute top-0 right-0 w-full h-full opacity-20" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
-            <path fill="#FFFFFF" d="M44.7,-76.4C58.3,-69.2,70.1,-57.4,78.2,-43.8C86.3,-30.2,90.7,-15.1,89.5,-0.7C88.3,13.7,81.5,27.4,72.2,39.6C62.9,51.8,51.1,62.5,37.3,70.6C23.5,78.7,7.7,84.2,-8.1,82.4C-23.9,80.6,-39.7,71.5,-53.4,60.2C-67.1,48.9,-78.7,35.4,-84.6,19.8C-90.5,4.2,-90.7,-13.5,-84.4,-29C-78.1,-44.5,-65.3,-57.8,-50.8,-64.8C-36.3,-71.8,-20.1,-72.5,-3.5,-66.4C13.1,-60.3,26.2,-47.4,44.7,-76.4Z" transform="translate(200 200)" />
-          </svg>
+  const isLogin = authMode === 'login';
 
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-[1100px] bg-white rounded-3xl shadow-xl overflow-hidden flex flex-col md:flex-row border border-slate-200/60">
+        
+        {/* Left Panel - Branding & Social Proof */}
+        <div className="hidden md:flex w-[40%] bg-indigo-600 p-12 flex-col justify-between relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2" />
+          
           <div className="relative z-10">
-            <div className="flex items-center gap-2 mb-8">
-              <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center">
-                <Zap size={20} className="text-white" />
+            <div className="flex items-center gap-3 mb-10">
+              <div className="w-10 h-10 rounded-xl bg-white shadow-xl flex items-center justify-center overflow-hidden">
+                <img src="/logo.png" alt="MoneyMatters" className="w-full h-full object-cover" />
               </div>
-              <span className="text-xl font-bold text-white font-display">MoneyMatters</span>
+              <span className="text-xl font-black text-white tracking-tight uppercase">MoneyMatters</span>
             </div>
             
-            <h1 className="text-4xl font-bold text-white leading-tight mb-4">
-              {isLogin ? 'Welcome back to your team.' : 'Manage expenses with zero friction.'}
+            <h1 className="text-3xl font-black text-white leading-tight tracking-tight mb-4">
+              {isLogin ? "Reimagine your financial workflow." : "The nucleus of your company spend."}
             </h1>
-            <p className="text-white/70 text-lg">
-              The smartest way for teams to handle reimbursements and bills.
+            <p className="text-indigo-100/80 text-base font-medium leading-relaxed max-w-xs">
+              Streamline reimbursements and automate compliance with AI-powered simplicity.
             </p>
           </div>
 
-          <div className="relative z-10 bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
-            <p className="text-white text-sm font-medium italic">
-              "MoneyMatters saved our finance team 20 hours a week on manual approvals. It's a game changer."
-            </p>
-            <div className="flex items-center gap-3 mt-4">
-              <div className="w-8 h-8 rounded-full bg-slate-200" />
-              <div>
-                <p className="text-white text-xs font-bold">Sarah Jenkins</p>
-                <p className="text-white/60 text-[10px]">Head of Finance, Vercel</p>
+          <div className="relative z-10 space-y-4">
+            <div className="bg-white/10 backdrop-blur-md p-6 rounded-2xl border border-white/10 shadow-xl">
+              <div className="flex gap-1 mb-3">
+                {[1,2,3,4,5].map(i => <div key={i} className="w-1 h-1 rounded-full bg-emerald-400" />)}
               </div>
+              <p className="text-white text-sm font-bold leading-snug tracking-tight">
+                "Zero manual entry. MoneyMatters is the most intuitive expense platform I've ever deployed."
+              </p>
+              <div className="flex items-center gap-3 mt-4">
+                <div className="w-8 h-8 rounded-lg bg-indigo-400 border border-white/20" />
+                <div>
+                  <p className="text-white text-xs font-black tracking-tight">Marcus Thorne</p>
+                  <p className="text-indigo-200/60 text-[9px] font-bold uppercase tracking-widest mt-0.5">CTO @ Innovate</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 pl-2">
+                <p className="text-indigo-100/60 text-[10px] font-bold uppercase tracking-widest leading-none">Trusted by 2k+ Teams</p>
             </div>
           </div>
         </div>
 
-        {/* Right Side - Form */}
-        <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center">
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-slate-800 mb-2">
-              {isLogin ? 'Welcome back' : 'Join your team'}
-            </h2>
-            <p className="text-slate-500">
-              {isLogin 
-                ? 'Great to see you again!' 
-                : 'Your company account will be set up automatically.'}
-            </p>
-          </div>
-
-          {/* Toggle Tabs */}
-          <div className="flex bg-slate-100 p-1 rounded-xl mb-8">
-            <button 
-              onClick={() => setIsLogin(true)}
-              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${isLogin ? 'bg-white text-[#6C47FF] shadow-sm' : 'text-slate-500'}`}
-            >
-              Sign In
-            </button>
-            <button 
-              onClick={() => setIsLogin(false)}
-              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${!isLogin ? 'bg-white text-[#6C47FF] shadow-sm' : 'text-slate-500'}`}
-            >
-              Create Account
-            </button>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm font-medium">
-                {error}
-              </div>
-            )}
-
-            {!isLogin && (
-              <div>
-                <label className="label">Full Name</label>
-                <input 
-                  type="text" 
-                  placeholder="John Doe"
-                  className="input"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                />
-              </div>
-            )}
-
-            <div>
-              <label className="label">Email Address</label>
-              <input 
-                type="email" 
-                placeholder="you@company.com"
-                className="input"
-                required
-                value={formData.email}
-                onChange={(e) => setFormData({...formData, email: e.target.value})}
-              />
+        {/* Right Panel - Content */}
+        <div className="flex-1 p-6 sm:p-12 flex flex-col items-center justify-center bg-white relative">
+          <div className="w-full max-w-[380px]">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-black text-slate-800 tracking-tight mb-2">
+                {authMode === 'login' && "Welcome Back"}
+                {authMode === 'create_company' && "Scale your Org"}
+                {authMode === 'join_company' && "Join your Team"}
+              </h2>
+              <p className="text-sm text-slate-400 font-medium">
+                {authMode === 'login' && "Access your secure financial dashboard"}
+                {authMode === 'create_company' && "Initialize your premium workspace"}
+                {authMode === 'join_company' && "Enter your unique access code below"}
+              </p>
             </div>
 
-            <div>
-              <label className="label">Password</label>
-              <div className="relative">
-                <input 
-                  type={showPassword ? 'text' : 'password'} 
-                  placeholder="••••••••"
-                  className="input pr-12"
-                  required
-                  value={formData.password}
-                  onChange={(e) => setFormData({...formData, password: e.target.value})}
-                />
+            {/* Mode Switcher */}
+            <div className="flex p-1 bg-slate-100/80 rounded-xl mb-8 border border-slate-200/60">
+              <button 
+                onClick={() => setAuthMode('login')}
+                className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${authMode === 'login' ? 'bg-white text-indigo-600 shadow-sm border border-slate-200/50' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                Sign In
+              </button>
+              <button 
+                onClick={() => setAuthMode('create_company')}
+                className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${authMode !== 'login' ? 'bg-white text-indigo-600 shadow-sm border border-slate-200/50' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                Sign Up
+              </button>
+            </div>
+
+            {/* Sub-modes for Register */}
+            {!isLogin && (
+              <div className="flex gap-2 mb-6 bg-slate-50/50 p-1 rounded-lg border border-dashed border-slate-200">
                 <button 
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                  onClick={() => setAuthMode('create_company')}
+                  className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-md flex items-center justify-center gap-2 transition-all ${authMode === 'create_company' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-400 hover:bg-slate-100'}`}
                 >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  <Building size={12} /> Startup
+                </button>
+                <button 
+                  onClick={() => setAuthMode('join_company')}
+                  className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-md flex items-center justify-center gap-2 transition-all ${authMode === 'join_company' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-400 hover:bg-slate-100'}`}
+                >
+                  <UserPlus size={12} /> Associate
                 </button>
               </div>
-            </div>
-
-            {!isLogin && (
-              <div>
-                <label className="label">I am a...</label>
-                <select 
-                  className="input"
-                  value={formData.role}
-                  onChange={(e) => setFormData({...formData, role: e.target.value})}
-                >
-                  <option value="employee">Employee</option>
-                  <option value="manager">Manager</option>
-                  <option value="admin">System Admin</option>
-                </select>
-              </div>
             )}
 
-            <button 
-              type="submit" 
-              disabled={loading}
-              className="btn-primary w-full justify-center mt-4"
-            >
-              {loading ? <Loader2 className="animate-spin" size={20} /> : (
-                <>
-                  {isLogin ? 'Sign In' : 'Create account'} 
-                  <ArrowRight size={18} className="ml-2" />
-                </>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {error && (
+                <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl text-rose-500 text-[11px] font-bold flex items-center gap-2">
+                    <XCircle size={14} />
+                    {error}
+                </div>
               )}
-            </button>
-          </form>
 
-          <p className="text-center text-slate-400 text-xs mt-8">
-            By signing in, you agree to our <span className="underline cursor-pointer">Terms of Service</span> and <span className="underline cursor-pointer">Privacy Policy</span>.
-          </p>
+              {!isLogin && (
+                <div className="space-y-1 group">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label>
+                  <input 
+                    type="text" 
+                    placeholder="Enter your name"
+                    className="input py-2 h-10"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  />
+                </div>
+              )}
+
+              <div className="space-y-1 group">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Institutional Email</label>
+                <input 
+                  type="email" 
+                  placeholder="you@company.com"
+                  className="input py-2 h-10"
+                  required
+                  value={formData.email}
+                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                />
+              </div>
+
+              <div className="space-y-1 group">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Secure Password</label>
+                <div className="relative">
+                  <input 
+                    type={showPassword ? 'text' : 'password'} 
+                    placeholder="••••••••"
+                    className="input py-2 h-10"
+                    required
+                    minLength={4}
+                    value={formData.password}
+                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-indigo-600 transition-colors focus:outline-none"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              {authMode === 'create_company' && (
+                <div className="space-y-1 group">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Organization Name</label>
+                  <input 
+                    type="text" 
+                    placeholder="E.g. Acme Industries"
+                    className="input py-2 h-10"
+                    required
+                    value={formData.companyName}
+                    onChange={(e) => setFormData({...formData, companyName: e.target.value})}
+                  />
+                </div>
+              )}
+
+              {authMode === 'join_company' && (
+                <div className="space-y-4">
+                  <div className="space-y-1 group">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Invitation Code</label>
+                    <input 
+                      type="text" 
+                      placeholder="8-ALPHANUMERIC"
+                      className="input py-2 h-10 font-bold tracking-widest text-center uppercase font-mono"
+                      required
+                      value={formData.inviteCode}
+                      onChange={(e) => setFormData({...formData, inviteCode: e.target.value.toUpperCase()})}
+                    />
+                  </div>
+                  <div className="space-y-1 group">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Company Access Tier</label>
+                    <select 
+                      className="input py-2 h-10 text-xs font-bold"
+                      value={formData.role}
+                      onChange={(e) => setFormData({...formData, role: e.target.value})}
+                    >
+                      <option value="employee">Standard Employee</option>
+                      <option value="manager">Lead/Manager</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              <button 
+                type="submit" 
+                disabled={loading}
+                className="w-full btn-primary h-11 flex items-center justify-center gap-2 mt-4 uppercase tracking-widest font-black text-[10px] group"
+              >
+                {loading ? <Loader2 className="animate-spin" size={16} /> : (
+                  <>
+                    <span>
+                        {authMode === 'login' && "Sign-In to Node"}
+                        {authMode === 'create_company' && "Deploy Workspace"}
+                        {authMode === 'join_company' && "Establish Link"}
+                    </span>
+                    <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" />
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+                <p className="text-[9px] text-slate-400 font-bold tracking-tight">
+                    Secured by RSA-4096 and OAuth 2.0 Compliance
+                </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 };
+
 
 export default AuthPage;

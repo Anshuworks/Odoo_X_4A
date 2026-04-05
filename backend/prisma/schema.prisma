@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id            String         @id @default(uuid())
+  name          String
+  currency      String
+  country       String
+  inviteCode    String?        @unique @map("invite_code")
+  createdAt     DateTime       @default(now())
+  users         User[]
+  approvalRules ApprovalRule[]
+
+  @@map("companies")
+}
+
+model User {
+  id                String         @id @default(uuid())
+  name              String
+  email             String
+  password          String         @map("password_hash")
+  role              Role           @default(EMPLOYEE)
+  companyId         String         @map("company_id")
+  managerId         String?        @map("manager_id")
+  isManagerApprover Boolean        @default(false) @map("is_manager_approver")
+  company           Company        @relation(fields: [companyId], references: [id])
+  manager           User?          @relation("Mgr", fields: [managerId], references: [id])
+  employees         User[]         @relation("Mgr")
+  expenses          Expense[]
+  approvalSteps     ApprovalStep[]
+  createdAt         DateTime       @default(now()) @map("created_at")
+
+  @@unique([email, companyId])
+  @@map("users")
+}
+
+enum Role {
+  ADMIN     @map("admin")
+  MANAGER   @map("manager")
+  EMPLOYEE  @map("employee")
+}
+
+model Expense {
+  id            String         @id @default(uuid())
+  amount        Float
+  currency      String
+  amountInBase  Float?         @map("amount_in_base")
+  category      String?
+  description   String?
+  date          DateTime?
+  status        ExpenseStatus  @default(PENDING)
+  receiptUrl    String?        @map("receipt_url")
+  submittedById String         @map("employee_id")
+  companyId     String         @map("company_id")
+  submittedBy   User           @relation(fields: [submittedById], references: [id])
+  approvalSteps ApprovalStep[]
+  createdAt     DateTime       @default(now()) @map("created_at")
+
+  @@map("expenses")
+}
+
+enum ExpenseStatus {
+  PENDING    @map("pending")
+  APPROVED   @map("approved")
+  REJECTED   @map("rejected")
+  IN_REVIEW  @map("in_review")
+}
+
+model ApprovalRule {
+  id                 String             @id @default(uuid())
+  companyId          String             @map("company_id")
+  company            Company            @relation(fields: [companyId], references: [id])
+  name               String?
+  type               ApprovalRuleType   @map("condition_type")
+  percentage         Int?
+  specificApproverId String?            @map("approver_id")
+  steps              ApprovalRuleStep[]
+
+  @@map("approval_rules")
+}
+
+enum ApprovalRuleType {
+  SEQUENTIAL         @map("sequential")
+  PERCENTAGE         @map("percentage")
+  SPECIFIC_APPROVER  @map("specific")
+  HYBRID             @map("hybrid")
+}
+
+model ApprovalRuleStep {
+  id         String       @id @default(uuid())
+  ruleId     String       @map("rule_id")
+  rule       ApprovalRule @relation(fields: [ruleId], references: [id])
+  approverId String       @map("approver_id")
+  sequence   Int          @map("step_sequence")
+
+  @@map("approval_rule_steps")
+}
+
+model ApprovalStep {
+  id         String             @id @default(uuid())
+  expenseId  String             @map("expense_id")
+  expense    Expense            @relation(fields: [expenseId], references: [id])
+  approverId String             @map("approver_id")
+  approver   User               @relation(fields: [approverId], references: [id])
+  sequence   Int                @map("step")
+  status     ApprovalStepStatus @default(PENDING)
+  comment    String?
+  decidedAt  DateTime?          @map("decided_at")
+
+  @@map("approval_requests")
+}
+
+enum ApprovalStepStatus {
+  PENDING   @map("pending")
+  APPROVED  @map("approved")
+  REJECTED  @map("rejected")
+  SKIPPED   @map("skipped")
+}
